@@ -6,16 +6,18 @@ import 'package:flutter/services.dart';
 
 class DidChangeAuthLocal {
   final methodChannel = const MethodChannel('did_change_authlocal');
+
   DidChangeAuthLocal._internal();
 
   static final DidChangeAuthLocal _instance = DidChangeAuthLocal._internal();
 
   static DidChangeAuthLocal get instance => _instance;
 
-  Future<AuthLocalStatus?> onCheckBiometric({String? token}) async {
+  Future<AuthLocalStatus?> onCheckBiometric(
+      {String? token, String? key, String? pk}) async {
     return Platform.isIOS
         ? await checkBiometricIOS(token: token ?? '')
-        : await checkBiometricAndroid();
+        : await checkBiometricAndroid(key ?? '', pk ?? '');
   }
 
   Future<String> getTokenBiometric() async {
@@ -51,9 +53,12 @@ class DidChangeAuthLocal {
 
   //For Android ( Only Fingerprint )
   //If user does not update Finger then Biometric Status will be AuthLocalStatus.valid
-  Future<AuthLocalStatus?> checkBiometricAndroid() async {
+  Future<AuthLocalStatus?> checkBiometricAndroid(String key, String pk) async {
     try {
-      final result = await methodChannel.invokeMethod('check');
+      final result = await methodChannel.invokeMethod('check', {
+        'key_bio': key,
+        'key_bio_pk': pk,
+      });
       return result == 'biometric_valid' ? AuthLocalStatus.valid : null;
     } on PlatformException catch (e) {
       switch (e.code) {
@@ -61,6 +66,8 @@ class DidChangeAuthLocal {
           return AuthLocalStatus.changed;
         case 'biometric_invalid':
           return AuthLocalStatus.invalid;
+        case 'biometric_did_change_public':
+          return AuthLocalStatus.changed;
         default:
           return null;
       }
